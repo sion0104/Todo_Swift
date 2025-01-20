@@ -195,7 +195,7 @@ struct ContentView: View {
         } else if let minute = components.minute, minute > 0 {
             return "\(minute)분 남음"
         } else {
-            return "어떻게 쓰지...? 기한 도래"
+            return "기한 임박"
         }
     }
 }
