@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct TodoApp: App {
+    @AppStorage("appearance") private var appearance: Appearance = .system
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TodoItem.self,
@@ -26,6 +28,7 @@ struct TodoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(appearance.colorScheme)
         }
         .modelContainer(sharedModelContainer)
     }

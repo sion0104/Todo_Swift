@@ -10,45 +10,59 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    
+    @AppStorage("appearance") private var appearance: Appearance = .system
+
     @Query private var todos: [TodoItem]
+    
     @State private var isAddingTodo = false
     @State private var searchText: String = ""
     @State private var isSearching = false
     @State private var sortByDate = false
     @State private var selectedPriority: String? = nil
-    
+    @State private var sortOption: SortOption = .byDateAscending
+    @State private var opacity: Double = 0.0 // 초기 투명도
 
-    var filteredTodos: [TodoItem] {
+
+    var filteredAndSortedTodos: [TodoItem] {
         var result = todos
-        if !searchText.isEmpty {
-                   result = result.filter{
-                       $0.title.lowercased().contains(searchText.lowercased())
-           }
-       }
-       
-       if let selectedPriority = selectedPriority {
-           result = result.filter { $0.priority == selectedPriority }
-       }
-       return result
         
-    }
-
-    var sortedTodos: [TodoItem] {
-        if sortByDate {
-            return filteredTodos.sorted { $0.dueDate < $1.dueDate}
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.title.lowercased().contains(searchText.lowercased())
+            }
         }
-        return filteredTodos
+        
+        if let selectedPriority = selectedPriority {
+            result = result.filter { $0.priority == selectedPriority }
+        }
+        
+        switch sortOption {
+        case .byDateAscending:
+            result = result.sorted { $0.dueDate < $1.dueDate }
+        case .byDateDescending:
+            result = result.sorted { $0.dueDate > $1.dueDate }
+        case .byPriority:
+            result = result.sorted { $0.priority < $1.priority }
+        case .byTitle:
+            result = result.sorted { $0.title.lowercased() < $1.title.lowercased() }
+        }
+        
+        return result
     }
-    
 
     var body: some View {
         NavigationStack {
+            
             VStack (spacing: 0){
+
                 if isSearching {
                     HStack {
                         TextField("Search", text: $searchText)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .padding()
+                            .transition(.move(edge: .top))
+                            .animation(.easeInOut, value: searchText)
                         
                         Button("Cancel") {
                             withAnimation {
@@ -63,10 +77,13 @@ struct ContentView: View {
                 }
                 
                 List {
-                    ForEach(sortedTodos) { todo in
+                    ForEach(filteredAndSortedTodos) { todo in
                             HStack {
                                 Button {
-                                    toggleCompletion(for: todo)
+                                    withAnimation {
+                                        toggleCompletion(for: todo)
+                                    }
+
                                 } label: {
                                     Image(systemName: todo.isCompleted ? "checkmark.circle.fill": "circle")
                                         .foregroundStyle(todo.isCompleted ? .green : .gray)
@@ -78,18 +95,27 @@ struct ContentView: View {
                                 } label: {
                                     Text(todo.title)
                                         .strikethrough(todo.isCompleted, color: .gray)
-                                        .foregroundStyle(todo.isCompleted ? .gray : .primary)
+                                        .foregroundStyle(todo.isCompleted ? .secondary : .primary)
                                 }
                                 Spacer()
                                 
                                 Text(remainingTime(for: todo.dueDate))
                                     .foregroundStyle(.gray)
                                     .font(.footnote)
+                                
+                                Image(systemName: icon(for: todo.priority))
+                                    .foregroundStyle(color(for: todo.priority))
+                                    .font(.title3)
+                                
                             }
+                            .background(todo.isCompleted ? Color.gray.opacity(0.1) : Color.clear)
+                            .cornerRadius(8)
                         
                     }
                     .onDelete(perform: deleteTodo)
                 }
+                .contentMargins(10)
+                .animation(.easeInOut, value: filteredAndSortedTodos)
                 .navigationTitle("Todo List")
                 .toolbar {
                     ToolbarItem {
@@ -108,32 +134,24 @@ struct ContentView: View {
                         }
 
                     }
-                    ToolbarItem {
-                        Button {
-                            sortByDate.toggle()
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button("Sort by Date (Ascending)") { sortOption = .byDateAscending }
+                            Button("Sort by Date (Descending)") { sortOption = .byDateDescending }
+                            Button("Sort by Priority") { sortOption = .byPriority }
+                            Button("Sort by Title") { sortOption = .byTitle }
                         } label: {
-                            Label("Sort by Date", systemImage: "calendar")
+                            Label("Sort", systemImage: "arrow.up.arrow.down")
                         }
                     }
-                    
-                    ToolbarItem {
-                        Menu {
-                            Button("High") {
-                                selectedPriority = "High"
-                            }
-                            Button("Medium") {
-                                selectedPriority = "Medium"
-                            }
-                            Button("Low") {
-                                selectedPriority = "Low"
-                            }
-                            Button("All Priorities") {
-                                selectedPriority = nil
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu{
+                            Button("System") { appearance = .system}
+                            Button("Light") { appearance = .light}
+                            Button("Dark") { appearance = .dark}
+                        }label: {
+                            Label("System Theme", systemImage: "ellipsis.circle.fill")
                         }
-                        
                     }
                     
                 }
@@ -143,8 +161,12 @@ struct ContentView: View {
         .sheet(isPresented: $isAddingTodo) {
             AddTodoView(isAddingTodo: $isAddingTodo)
         }
-
-        
+        .opacity(opacity)
+        .onAppear {
+            withAnimation(.easeIn(duration: 0.5)){
+                opacity = 1.0
+            }
+        }
         
     }
 
@@ -198,7 +220,58 @@ struct ContentView: View {
             return "기한 임박"
         }
     }
+    
+    private func icon(for priority: String) -> String {
+        switch priority {
+        case "High":
+            return "arrowshape.up.circle.fill"
+        case "Medium":
+            return "minus.circle.fill"
+        case "Low":
+            return "arrowshape.down.circle.fill"
+        default:
+            return "questionmark.circle.fill"
+        }
+    }
+
+    private func color(for priority: String) -> Color {
+        switch priority {
+        case "High":
+            return .red
+        case "Medium":
+            return .orange
+        case "Low":
+            return .green
+        default:
+            return .gray
+        }
+    }
 }
+
+enum SortOption {
+    case byDateAscending
+    case byDateDescending
+    case byPriority
+    case byTitle
+}
+
+enum Appearance: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { self.rawValue }
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
+
 
 #Preview {
     ContentView()
