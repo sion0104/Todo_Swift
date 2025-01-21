@@ -14,9 +14,9 @@ final class TodoItem: Identifiable {
     var title: String
     var isCompleted: Bool
     var priority: String
-    var dueDate: Date?
+    var dueDate: Date
     
-    init(id: UUID = UUID(), title: String, isCompleted: Bool = false, priority: String = "low", dueDate: Date? = nil) {
+    init(id: UUID = UUID(), title: String, isCompleted: Bool = false, priority: String = "low", dueDate: Date = Date.now) {
         self.id = id
         self.title = title
         self.isCompleted = isCompleted
