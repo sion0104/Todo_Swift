@@ -23,7 +23,7 @@ struct TodoDetailView: View {
         self.todo = todo
         _editedTitle = State(initialValue: todo.title)
         _selectedPrioirity = State(initialValue: todo.priority)
-        _dueDate = State(initialValue: todo.dueDate)
+        _dueDate = State(initialValue: todo.dueDate ?? Date())
     }
     
     var body: some View {

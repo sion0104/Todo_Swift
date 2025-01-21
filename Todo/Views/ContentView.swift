@@ -21,34 +21,47 @@ struct ContentView: View {
     @State private var sortByDate = false
     @State private var selectedPriority: String? = nil
     @State private var sortOption: SortOption = .byDateAscending
-    @State private var opacity: Double = 0.0 // 초기 투명도
+    @State private var opacity: Double = 0.0
 
 
     var filteredAndSortedTodos: [TodoItem] {
+        let filteredTodos = filterTodos(todos)
+        
+        return sortTodos(filteredTodos)
+    }
+
+    private func filterTodos(_ todos: [TodoItem]) -> [TodoItem] {
         var result = todos
         
         if !searchText.isEmpty {
-            result = result.filter {
-                $0.title.lowercased().contains(searchText.lowercased())
-            }
+            let lowercasedSearchText = searchText.lowercased()
+            result = result.filter { $0.title.lowercased().contains(lowercasedSearchText) }
         }
         
         if let selectedPriority = selectedPriority {
             result = result.filter { $0.priority == selectedPriority }
         }
         
+        return result
+    }
+
+    private func sortTodos(_ todos: [TodoItem]) -> [TodoItem] {
         switch sortOption {
         case .byDateAscending:
-            result = result.sorted { $0.dueDate < $1.dueDate }
+            return todos.sorted {
+                ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture)
+            }
         case .byDateDescending:
-            result = result.sorted { $0.dueDate > $1.dueDate }
+            return todos.sorted {
+                ($0.dueDate ?? .distantPast) > ($1.dueDate ?? .distantPast)
+            }
         case .byPriority:
-            result = result.sorted { $0.priority < $1.priority }
+            return todos.sorted { $0.priority < $1.priority }
         case .byTitle:
-            result = result.sorted { $0.title.lowercased() < $1.title.lowercased() }
+            return todos.sorted {
+                $0.title.lowercased() < $1.title.lowercased()
+            }
         }
-        
-        return result
     }
 
     var body: some View {
@@ -102,6 +115,7 @@ struct ContentView: View {
                                 Text(remainingTime(for: todo.dueDate))
                                     .foregroundStyle(.gray)
                                     .font(.footnote)
+                                    .fixedSize()
                                 
                                 Image(systemName: icon(for: todo.priority))
                                     .foregroundStyle(color(for: todo.priority))
@@ -208,9 +222,13 @@ struct ContentView: View {
             return "기한 초과"
         }
         
-        let components = calendar.dateComponents([.day, .hour, .minute], from: currentDate, to: dueDate)
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: currentDate, to: dueDate)
         
-        if let day = components.day, day > 0 {
+        if let year = components.year, year > 0 {
+            return "\(year)년 남음"
+        } else if let month = components.month, month > 0 {
+            return "\(month)달 남음"
+        } else if let day = components.day, day > 0 {
             return "\(day)일 남음"
         } else if let hour = components.hour, hour > 0 {
             return "\(hour)시간 남음"
@@ -248,28 +266,9 @@ struct ContentView: View {
     }
 }
 
-enum SortOption {
-    case byDateAscending
-    case byDateDescending
-    case byPriority
-    case byTitle
-}
 
-enum Appearance: String, CaseIterable, Identifiable {
-    case system
-    case light
-    case dark
 
-    var id: String { self.rawValue }
-    
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: return nil
-        case .light: return .light
-        case .dark: return .dark
-        }
-    }
-}
+
 
 
 
