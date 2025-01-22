@@ -12,8 +12,9 @@ struct TodoDetailView: View {
     @Environment(\.presentationMode) private var presentationMode
     @State var todo: TodoItem
     @State private var editedTitle: String
-    @State private var selectedPrioirity: String
-    @State private var dueDate: Date
+    @State private var selectedPrioirity: Priority?
+    @State private var dueDate: Date?
+    @State private var isDueDateEnabled: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     
@@ -39,12 +40,20 @@ struct TodoDetailView: View {
             }
             
             Section(header: Text("Task information")) {
-                DatePicker("Due Date", selection: $dueDate)
+                Toggle("마감일 설정", isOn: $isDueDateEnabled)
+                if isDueDateEnabled {
+                    DatePicker("Due Date", selection: Binding(get: {
+                        dueDate ?? Date()
+                    }, set: {
+                        dueDate = $0
+                    }), displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(CompactDatePickerStyle())
+                }
             }
             
             Section {
                 Button("Save Changes"){
-                    if dueDate <= Date() {
+                    if dueDate != nil, ( dueDate ?? Date() ) <= Date() {
                         alertMessage = "Please select a future date and time for the due date."
                         showAlert = true
                     } else if editedTitle.isEmpty {

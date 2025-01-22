@@ -9,49 +9,61 @@ import SwiftUI
 
 struct AddTodoView: View {
     @Environment(\.modelContext) private var modelContext
-    @Binding var isAddingTodo: Bool
+    @Environment(\.dismiss) private var dismiss
+    
+    @State var isAddingTodo: Bool = false
     @State private var title: String = ""
-    @State private var priority: String = "Low"
-    @State private var dueDate: Date = Date.now
+    @State private var priority: Priority? = nil
+    @State private var dueDate: Date? = nil
+    @State private var isDueDateEnabled: Bool = false
+    
+    
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
 
-    
-    let priorities = ["Low", "Medium", "High"]
+
     
     var body: some View {
         NavigationView {
             Form {
                 TextField("Title", text: $title)
+                
                 Picker("Priority", selection: $priority) {
-                    ForEach(priorities, id: \.self) { priority in
-                        Text(priority)
+                    ForEach(Priority.allCases, id: \.self) { priority in
+                        Text(priority.title)
                     }
                 }
-                DatePicker("Due Date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(CompactDatePickerStyle())
-                
+                Toggle("Due Date", isOn: $isDueDateEnabled)
+                if isDueDateEnabled {
+                    DatePicker("Due Date", selection: Binding(get: {
+                        dueDate ?? Date()
+                    }, set: {
+                        dueDate = $0
+                    }), displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(CompactDatePickerStyle())
+                }
             }
             .navigationTitle("Add Todo")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         isAddingTodo = false
+                        dismiss()
                     }
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if dueDate <= Date() {
+                        if dueDate != nil, dueDate ?? Date() <= Date() {
                             alertMessage = "Please select a future date and time for the due date."
                             showAlert = true
                         } else if title.isEmpty {
                             alertMessage = "Title cannot be empty"
                             showAlert = true
                         }else {
-                            addTodo()
                             isAddingTodo = false
                             showAlert = false
+                            addTodo()
                         }
                     }
 
@@ -59,7 +71,7 @@ struct AddTodoView: View {
             }
             .alert(isPresented: $showAlert) {
                 Alert(
-                    title: Text("Invalid Date"),
+                    title: Text("Invalid Todo"),
                     message: Text(alertMessage),
                     dismissButton: .default(Text("OK"))
                 )
@@ -68,11 +80,13 @@ struct AddTodoView: View {
     }
     
     private func addTodo() {
-        let newTodo = TodoItem(title: title, priority: priority, dueDate: dueDate)
+        let newTodo = TodoItem(title: title, priority: nil, dueDate: dueDate)
         modelContext.insert(newTodo)
+        dismiss()
     }
 }
 
 #Preview {
-    
+    AddTodoView()
+        .modelContainer(for: TodoItem.self, inMemory: true)
 }
